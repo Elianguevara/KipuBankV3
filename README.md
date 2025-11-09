@@ -514,73 +514,6 @@ forge test --gas-report
 
 ---
 
-## 🚧 Roadmap to Production
-
-### Current Status: 🟡 TESTNET READY
-
-KipuBankV3 implements solid security controls for an MVP but requires additional improvements before mainnet deployment with real funds.
-
-### Critical (Pre-Mainnet) - BLOCKERS
-
-- [ ] **TWAP Implementation** (ETA: 2-3 weeks)
-
-  - Integrate Uniswap V3 TWAP for swaps
-  - Prevents flash loan price manipulation
-  - **Impact**: Reduces C3 risk from 🟠 High to 🟢 Low
-
-- [ ] **Token Whitelist** (ETA: 1 week)
-
-  - Curated list of approved tokens
-  - Automatic contract verification
-  - **Impact**: Reduces H3 risk from 🟡 Medium to 🟢 Low
-
-- [ ] **Professional Security Audit #1** (ETA: 3-6 weeks, Cost: $30-50k)
-
-  - CertiK, OpenZeppelin, or Trail of Bits
-  - Scope: Smart contracts + Uniswap integration
-  - **Impact**: Independent security validation
-
-- [ ] **Professional Security Audit #2** (ETA: 3-6 weeks post-fixes, Cost: $30-50k)
-  - Different firm from Audit #1
-  - Verification of fixes from first audit
-  - **Impact**: Double validation
-
-### High Priority (1-3 months)
-
-- [ ] **Flashbots Integration** (ETA: 2 weeks)
-- [ ] **Circuit Breakers** (ETA: 1 week)
-- [ ] **Timelock for Admin** (ETA: 2 weeks, 48h delay)
-- [ ] **Bug Bounty Launch** (ETA: Immediate, Budget: $50k-500k)
-
-### Medium Priority (3-6 months)
-
-- [ ] **Multi-Sig for Roles** (Gnosis Safe 3/5)
-- [ ] **Oracle Redundancy** (Tellor as fallback)
-- [ ] **Insurance Coverage** (Nexus Mutual)
-- [ ] **Advanced Monitoring** (OpenZeppelin Defender)
-
-### Maturity Metrics (6 months)
-
-| Metric                | Target | Current | Status |
-| --------------------- | ------ | ------- | ------ |
-| **Code Coverage**     | 85%    | 78%     | 🟡     |
-| **External Audits**   | 2+     | 0       | 🔴     |
-| **Bug Bounty**        | Active | No      | 🔴     |
-| **Oracle Redundancy** | 2+     | 1       | 🔴     |
-| **Token Whitelist**   | Yes    | No      | 🔴     |
-| **TWAP Protection**   | Yes    | No      | 🔴     |
-| **Insurance**         | >$1M   | $0      | 🔴     |
-
-### Cost Estimation
-
-| Item                 | Cost          | Timeframe      | Priority |
-| -------------------- | ------------- | -------------- | -------- |
-| Audit CertiK         | $30-50k       | 4-6 weeks      | 🔴       |
-| Audit Trail of Bits  | $30-50k       | 4-6 weeks      | 🔴       |
-| Bug Bounty (initial) | $50k          | Immediate      | 🟠       |
-| Insurance (annual)   | 2-5% TVL      | Ongoing        | 🟡       |
-| **Total Initial**    | **$110-150k** | **3-6 months** | -        |
-
 ### Recommendation
 
 **🔴 DO NOT DEPLOY TO MAINNET until completing all critical items**:
@@ -627,10 +560,6 @@ KipuBankV3 implements solid security controls for an MVP but requires additional
 ### Report Vulnerabilities
 
 **Security Policy**: If you find a security vulnerability:
-
-1. **DO NOT disclose publicly**
-2. Contact: security@kipubank.io
-3. Include: detailed description, reproduction steps, potential impact, PoC if possible
 
 ---
 
