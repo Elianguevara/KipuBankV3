@@ -4,8 +4,8 @@ pragma solidity ^0.8.26;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract MockRouterV2 {
-    // ratio: tokenIn -> usdcOut por unidad base (escala 1e18 interna para cálculo)
-    mapping(address => uint256) public ratioToUSDC; // ej: 2e6 = 2 USDC por 1 token con 18 dec
+    
+    mapping(address => uint256) public ratioToUSDC; 
 
     address public immutable USDC;
 

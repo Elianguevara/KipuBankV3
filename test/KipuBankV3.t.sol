@@ -6,7 +6,7 @@ import {KipuBankV3} from "../src/KipuBankV3.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ERC20Mock} from "@openzeppelin/contracts/mocks/token/ERC20Mock.sol";
 
-// Import de errores para expectRevert(selector)
+// Error imports for expectRevert(selector)
 import {
     KBV3_ZeroAmount,
     KBV3_CapExceeded,
@@ -15,19 +15,18 @@ import {
     KBV3_WithdrawalLimitExceeded
 } from "../src/KipuBankV3.sol";
 
-/// @dev Necesario porque las direcciones de makeAddr NO reciben ETH
+/// @dev Needed because makeAddr addresses do NOT receive ETH
 contract Receiver {
     receive() external payable {}
 }
 
 /**
  * @title KipuBankV3Test
- * @notice Suite completa de pruebas para KipuBankV3 (real fork Sepolia)
+ * @notice Full test suite for KipuBankV3 (real Sepolia fork)
  */
 contract KipuBankV3Test is Test {
     KipuBankV3 public bank;
 
-    // Dirección reales de Sepolia
     address constant USDC_SEPOLIA = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
     address constant ETH_USD_FEED_SEPOLIA = 0x694AA1769357215DE4FAC081bf1f309aDC325306;
     address constant UNISWAP_ROUTER_SEPOLIA = 0xC532a74256D3Db42D0Bf7a0400fEFDbad7694008;
@@ -54,6 +53,7 @@ contract KipuBankV3Test is Test {
     event KBV3_BankCapUpdated(uint256 newCapUSD6);
     event KBV3_SlippageUpdated(uint256 newSlippageBps);
 
+    /// @notice Sets up the test environment and deploys the contract
     function setUp() public {
         vm.createSelectFork(vm.envString("SEPOLIA_RPC_URL"));
 
@@ -85,6 +85,7 @@ contract KipuBankV3Test is Test {
                          COUNTER TESTS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Tests that deposit and withdraw counters increment correctly
     function test_CounterIncrementCorrectly() public {
         assertEq(bank.s_depositCount(), 0);
 
@@ -103,6 +104,7 @@ contract KipuBankV3Test is Test {
         assertEq(bank.s_withdrawCount(), 1);
     }
 
+    /// @notice Placeholder for counter overflow protection test
     function test_CounterOverflowProtection_Placeholder() public {
         assertTrue(true);
     }
@@ -111,6 +113,7 @@ contract KipuBankV3Test is Test {
                       UNIFIED DEPOSIT LOGIC
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Tests unified deposit logic for ETH and USDC
     function test_UnifiedDepositLogic() public {
         vm.startPrank(user1);
 
@@ -136,6 +139,7 @@ contract KipuBankV3Test is Test {
                       UNIFIED WITHDRAW LOGIC
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Tests unified withdrawal logic for ETH and USDC
     function test_UnifiedWithdrawalLogic() public {
         vm.startPrank(user1);
 
@@ -170,12 +174,14 @@ contract KipuBankV3Test is Test {
                          INVALID DEPOSITS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Reverts when depositing zero ETH
     function test_RevertWhen_DepositETH_ZeroAmount() public {
         vm.prank(user1);
         vm.expectRevert();
         bank.depositETH{value: 0}();
     }
 
+    /// @notice Reverts when ETH deposit exceeds bank cap
     function test_RevertWhen_DepositETH_ExceedsCap() public {
     vm.prank(admin);
     bank.setBankCapUSD6(1000);
@@ -185,6 +191,7 @@ contract KipuBankV3Test is Test {
     bank.depositETH{value: 1 ether}();
     }
 
+    /// @notice Reverts when depositToken is called with USDC
     function test_RevertWhen_DepositToken_IsUSDC() public {
         deal(USDC_SEPOLIA, user1, 1000 * 1e6);
 
@@ -197,6 +204,7 @@ contract KipuBankV3Test is Test {
         vm.stopPrank();
     }
 
+    /// @notice Reverts when depositing zero amount of token
     function test_RevertWhen_DepositToken_ZeroAmount() public {
         ERC20Mock mock = new ERC20Mock();
 
@@ -209,12 +217,14 @@ contract KipuBankV3Test is Test {
                         WITHDRAW REVERTS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Reverts when withdrawing more ETH than available balance
     function test_RevertWhen_WithdrawETH_InsufficientBalance() public {
         vm.prank(user1);
         vm.expectRevert();
         bank.withdrawETH(1000 * 1e6);
     }
 
+    /// @notice Reverts when withdrawal exceeds threshold
     function test_RevertWhen_Withdraw_ExceedsThreshold() public {
         vm.prank(user1);
         bank.depositETH{value: 5 ether}();
@@ -230,6 +240,7 @@ contract KipuBankV3Test is Test {
                          WITHDRAW SUCCESS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Tests successful ETH withdrawal
     function test_WithdrawETH() public {
         vm.prank(user1);
         bank.depositETH{value: ETH_DEPOSIT}();
@@ -245,6 +256,7 @@ contract KipuBankV3Test is Test {
         assertGt(user1.balance, before);
     }
 
+    /// @notice Tests successful USDC withdrawal
     function test_WithdrawUSDC() public {
         deal(USDC_SEPOLIA, user1, USDC_DEPOSIT);
 
@@ -264,6 +276,7 @@ contract KipuBankV3Test is Test {
                           ADMIN TESTS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Tests admin can update bank cap and slippage
     function test_AdminCanUpdateCapAndSlippage() public {
         vm.prank(admin);
         vm.expectEmit(true, false, false, true);
@@ -276,6 +289,7 @@ contract KipuBankV3Test is Test {
         bank.setDefaultSlippage(150);
     }
 
+    /// @notice Tests pause/unpause blocks and allows state changes
     function test_Pause_Unpause_BlocksStateChanging() public {
         vm.prank(pauser);
         bank.pause();
@@ -294,6 +308,7 @@ contract KipuBankV3Test is Test {
         assertEq(bank.s_depositCount(), 1);
     }
 
+    /// @notice Tests treasurer can rescue tokens from contract
     function test_TreasurerCanRescueTokens() public {
         deal(USDC_SEPOLIA, address(bank), 500 * 1e6);
 
@@ -310,6 +325,7 @@ contract KipuBankV3Test is Test {
                         FUZZ TESTS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Fuzz test for ETH deposit and counter increment
     function testFuzz_DepositETH_WithCounters(uint96 amount) public {
         vm.assume(amount > 0 && amount < 10 ether);
 
@@ -325,6 +341,7 @@ contract KipuBankV3Test is Test {
         assertEq(bank.s_depositCount(), 1);
     }
 
+    /// @notice Fuzz test for deposit and withdraw cycle
     function testFuzz_DepositWithdrawCycle(uint96 depositAmt, uint8 pct) public {
         vm.assume(depositAmt > 1000 && depositAmt < 10 ether);
         vm.assume(pct > 0 && pct <= 100);

@@ -1,18 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-// ====================================================================
-// LAYOUT STRUCTURE FOLLOWING SOLIDITY STYLE GUIDE
-// 1. Version 
-// 2. Imports 
-// 3. Errors 
-// 4. Interfaces, Libraries, Contracts
-// 5. Type declarations
-// 6. State variables
-// 7. Events
-// 8. Modifiers
-// 9. Functions
-// ====================================================================
 
 /*///////////////////////////
           IMPORTS
@@ -325,7 +313,7 @@ contract KipuBankV3 is AccessControl, Pausable, ReentrancyGuard {
     
     /**
      * @notice Deposits ETH and credits USD-6
-     * @dev ✅ OPTIMIZED: Single state reads/writes, unchecked arithmetic
+     * @dev OPTIMIZED: Single state reads/writes, unchecked arithmetic
      */
     function depositETH()
         external
@@ -341,11 +329,11 @@ contract KipuBankV3 is AccessControl, Pausable, ReentrancyGuard {
         // Validate capacity (modifier handles single read)
         _validateAndUpdateCapacity(usd6);
         
-        // ✅ CRITICAL: Single state access pattern
+        //  CRITICAL: Single state access pattern
         uint256 currentBalance = s_balances[msg.sender][address(0)];
         uint256 newBalance;
         
-        // ✅ Safe arithmetic in unchecked block (overflow impossible due to cap)
+        //  Safe arithmetic in unchecked block (overflow impossible due to cap)
         unchecked {
             newBalance = currentBalance + usd6;
         }
@@ -364,7 +352,7 @@ contract KipuBankV3 is AccessControl, Pausable, ReentrancyGuard {
     /**
      * @notice Deposits USDC and credits USD-6
      * @param amountUSDC Amount of USDC to deposit
-     * @dev ✅ OPTIMIZED: Single state reads/writes
+     * @dev  OPTIMIZED: Single state reads/writes
      */
     function depositUSDC(uint256 amountUSDC)
         external
@@ -379,7 +367,7 @@ contract KipuBankV3 is AccessControl, Pausable, ReentrancyGuard {
         // Transfer USDC from user
         USDC.safeTransferFrom(msg.sender, address(this), amountUSDC);
         
-        // ✅ CRITICAL: Single state access pattern
+        //  CRITICAL: Single state access pattern
         uint256 currentBalance = s_balances[msg.sender][address(USDC)];
         uint256 newBalance;
         
@@ -401,7 +389,7 @@ contract KipuBankV3 is AccessControl, Pausable, ReentrancyGuard {
      * @param token Token to deposit
      * @param amountToken Amount of tokens
      * @param minAmountOutUSDC Minimum USDC expected
-     * @dev ✅ OPTIMIZED: Efficient state management
+     * @dev  OPTIMIZED: Efficient state management
      */
     function depositToken(
         address token,
@@ -466,7 +454,7 @@ contract KipuBankV3 is AccessControl, Pausable, ReentrancyGuard {
     /**
      * @notice Withdraws ETH by debiting USD-6
      * @param usd6Amount Amount to withdraw in USD-6
-     * @dev ✅ OPTIMIZED: Single state reads/writes with unchecked blocks
+     * @dev  OPTIMIZED: Single state reads/writes with unchecked blocks
      */
     function withdrawETH(uint256 usd6Amount)
         external
@@ -478,11 +466,11 @@ contract KipuBankV3 is AccessControl, Pausable, ReentrancyGuard {
         // Convert to ETH
         uint256 weiAmount = _usd6ToEthWei(usd6Amount);
         
-        // ✅ CRITICAL: Single state access pattern for balance
+        //  CRITICAL: Single state access pattern for balance
         uint256 currentBalance = s_balances[msg.sender][address(0)];
         uint256 newBalance;
         
-        // ✅ Safe subtraction (already validated in modifier)
+        //  Safe subtraction (already validated in modifier)
         unchecked {
             newBalance = currentBalance - usd6Amount;
         }
@@ -507,7 +495,7 @@ contract KipuBankV3 is AccessControl, Pausable, ReentrancyGuard {
     /**
      * @notice Withdraws USDC by debiting USD-6
      * @param usd6Amount Amount to withdraw
-     * @dev ✅ OPTIMIZED: Efficient state management
+     * @dev  OPTIMIZED: Efficient state management
      */
     function withdrawUSDC(uint256 usd6Amount)
         external
@@ -516,7 +504,7 @@ contract KipuBankV3 is AccessControl, Pausable, ReentrancyGuard {
         validateWithdrawal(address(USDC), usd6Amount)
         validateCounter(CounterType.WITHDRAWAL)
     {
-        // ✅ CRITICAL: Single state access pattern
+        //  CRITICAL: Single state access pattern
         uint256 currentBalance = s_balances[msg.sender][address(USDC)];
         uint256 newBalance;
         
@@ -706,7 +694,7 @@ contract KipuBankV3 is AccessControl, Pausable, ReentrancyGuard {
     /**
      * @notice Validates and updates capacity with single state access
      * @param additionalUSD6 Amount to add
-     * @dev ✅ CRITICAL: Optimized for single read/write pattern
+     * @dev  CRITICAL: Optimized for single read/write pattern
      */
     function _validateAndUpdateCapacity(uint256 additionalUSD6) private {
         uint256 currentTotal = s_totalUSD6;  // SINGLE READ

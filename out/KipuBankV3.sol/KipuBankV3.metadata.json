@@ -1072,10 +1072,10 @@
           }
         },
         "depositETH()": {
-          "details": "✅ OPTIMIZED: Single state reads/writes, unchecked arithmetic"
+          "details": "OPTIMIZED: Single state reads/writes, unchecked arithmetic"
         },
         "depositToken(address,uint256,uint256)": {
-          "details": "✅ OPTIMIZED: Efficient state management",
+          "details": "OPTIMIZED: Efficient state management",
           "params": {
             "amountToken": "Amount of tokens",
             "minAmountOutUSDC": "Minimum USDC expected",
@@ -1083,7 +1083,7 @@
           }
         },
         "depositUSDC(uint256)": {
-          "details": "✅ OPTIMIZED: Single state reads/writes",
+          "details": "OPTIMIZED: Single state reads/writes",
           "params": {
             "amountUSDC": "Amount of USDC to deposit"
           }
@@ -1174,13 +1174,13 @@
           "details": "See {IERC165-supportsInterface}."
         },
         "withdrawETH(uint256)": {
-          "details": "✅ OPTIMIZED: Single state reads/writes with unchecked blocks",
+          "details": "OPTIMIZED: Single state reads/writes with unchecked blocks",
           "params": {
             "usd6Amount": "Amount to withdraw in USD-6"
           }
         },
         "withdrawUSDC(uint256)": {
-          "details": "✅ OPTIMIZED: Efficient state management",
+          "details": "OPTIMIZED: Efficient state management",
           "params": {
             "usd6Amount": "Amount to withdraw"
           }
@@ -1376,10 +1376,10 @@
       "license": "MIT"
     },
     "src/KipuBankV3.sol": {
-      "keccak256": "0xbe18d07996b8e92b8ebfcb3493635bd6fed5805e71cd6983e78113b2296520ca",
+      "keccak256": "0x7ac4bb7542aad2a0ade9e9d4a195e81c8afb3aebf9eeadef76ce6556ba2cc23f",
       "urls": [
-        "bzz-raw://5ff25c0c7e285cfa06de7bc7cf25904548d971287faf771b815fb78a01806c12",
-        "dweb:/ipfs/QmfFP8iFNqvL6DEnR5X3Ggk95nzHQ7h2KHawi7iqvNZaik"
+        "bzz-raw://0f3045d13dd5deabf5ba9ba12e50967e9b1e183c9e362b019044897667807457",
+        "dweb:/ipfs/QmaLyXTpUc3vyXaGaNXfJk5zR7FzKUkqzs7ca1Emez4EMG"
       ],
       "license": "MIT"
     }
