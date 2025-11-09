@@ -557,10 +557,6 @@ forge test --gas-report
 **GitHub**: [@Elianguevara](https://github.com/Elianguevara)  
 **Contract (Sepolia)**: [`0x68f19cfCE402C661F457e3fF77b1E056a5EC6dA8`](https://sepolia.etherscan.io/address/0x68f19cfce402c661f457e3ff77b1e056a5ec6da8)
 
-### Report Vulnerabilities
-
-**Security Policy**: If you find a security vulnerability:
-
 ---
 
 ## 📄 License
