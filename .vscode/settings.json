@@ -1,0 +1,24 @@
+{
+  "solidity.compileUsingRemoteVersion": "v0.8.26+commit.8a97fa7a",
+  "solidity.defaultCompiler": "localFile",
+  "solidity.compilerOptimization": 200,
+
+  "solidity.packageDefaultDependenciesContractsDirectory": "",
+  "solidity.packageDefaultDependenciesDirectory": "lib",
+
+  "solidity.remappings": [
+    "@openzeppelin/=lib/openzeppelin-contracts/",
+    "@chainlink/=lib/chainlink-brownie-contracts/",
+    "@uniswap/v2-periphery/=lib/v2-periphery/",
+    "@uniswap/v2-core/=lib/v2-core/"
+  ],
+
+  "solidity.formatter": "forge",
+  "[solidity]": {
+    "editor.defaultFormatter": "JuanBlanco.solidity"
+  },
+
+  "files.exclude": {
+    "**/certora/**": true
+  }
+}

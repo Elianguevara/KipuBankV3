@@ -1,0 +1,37 @@
+# Variables de entorno (claves privadas / URLs sensibles)
+.env
+.env.local
+.env.*.local
+
+# Foundry / Forge artefactos
+out/
+lib/
+cache/
+*.dbg.json
+*.dump
+script/*.dbg.json
+
+# Remappings de Solidity
+remappings.txt
+
+# Lock file generado por foundry
+foundry.lock
+
+# IDEs / editores
+.vscode/
+.idea/
+*.code-workspace
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Node modules (si tienes scripts Node.js, por ejemplo para deploy)
+node_modules/
+
+# Otros artefactos temporales
+*.tmp
+*.temp
