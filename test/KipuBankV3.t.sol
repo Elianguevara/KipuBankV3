@@ -8,6 +8,13 @@ import {MockV3Aggregator} from "./mocks/MockV3Aggregator.sol";
 import {MockUniswapRouter} from "./mocks/MockUniswapRouter.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 
+
+// ⭐ AGREGAR ESTE CONTRATO
+contract ETHReceiver {
+    receive() external payable {}
+    fallback() external payable {}
+}
+
 /**
  * @title KipuBankV3Test
  * @notice Test suite for the KipuBankV3 contract, covering all functionalities and security checks.
@@ -288,28 +295,31 @@ contract KipuBankV3Test is Test {
     }
 
     function test_WithdrawETH_Success() public {
-        uint256 usdAmount = 1000 * 1e6;
-        uint256 expectedETH = 0.5 ether;
-        
-        deal(USDC_SEPOLIA, user1, usdAmount);
-        
-        vm.startPrank(user1);
-        IERC20(USDC_SEPOLIA).approve(address(bank), usdAmount);
-        bank.depositUSDC(usdAmount);
-        vm.stopPrank();
-        
-        vm.deal(address(mockRouter), 10 ether);
-        mockRouter.setExpectedOutputAmount(expectedETH);
-        
-        uint256 initialETHBalance = user1.balance;
-        
-        vm.startPrank(user1);
-        bank.withdrawETH(usdAmount);
-        vm.stopPrank();
-        
-        assertEq(bank.getBalanceUSD6(user1), 0, "USDC balance should be 0");
-        assertEq(user1.balance, initialETHBalance + expectedETH, "User should receive ETH");
-    }
+    // ⭐ Crear un receiver que pueda recibir ETH
+    ETHReceiver testUser = new ETHReceiver();
+    
+    uint256 usdAmount = 1000 * 1e6;
+    uint256 expectedETH = 0.5 ether;
+    
+    deal(USDC_SEPOLIA, address(testUser), usdAmount);
+    
+    vm.startPrank(address(testUser));
+    IERC20(USDC_SEPOLIA).approve(address(bank), usdAmount);
+    bank.depositUSDC(usdAmount);
+    vm.stopPrank();
+    
+    vm.deal(address(mockRouter), 10 ether);
+    mockRouter.setExpectedOutputAmount(expectedETH);
+    
+    uint256 balanceBefore = address(testUser).balance;
+    
+    vm.startPrank(address(testUser));
+    bank.withdrawETH(usdAmount);
+    vm.stopPrank();
+    
+    assertEq(bank.getBalanceUSD6(address(testUser)), 0, "USDC balance should be 0");
+    assertEq(address(testUser).balance, balanceBefore + expectedETH, "User should receive ETH");
+}
 
     function test_RevertWhen_WithdrawETH_SwapFails() public {
         uint256 usdAmount = 100 * 1e6;
@@ -489,7 +499,7 @@ contract KipuBankV3Test is Test {
             }
         }
         
-        fail("Could not find deposit counter slot");
+        fail();
     }
     
     function test_RevertWhen_WithdrawalCounterOverflows() public {
@@ -539,17 +549,29 @@ contract KipuBankV3Test is Test {
     // =========================================================================
 
     function test_Treasury_RescueETH() public {
-        vm.deal(address(bank), 1 ether);
-        uint256 initialTreasuryBalance = treasury.balance;
-        uint256 rescueAmount = 0.5 ether;
-        
-        vm.startPrank(treasury);
-        bank.rescue(address(0), rescueAmount);
-        vm.stopPrank();
-        
-        assertEq(treasury.balance, initialTreasuryBalance + rescueAmount);
-        assertEq(address(bank).balance, 0.5 ether);
-    }
+    // Crear un receiver que pueda recibir ETH
+    ETHReceiver testTreasury = new ETHReceiver();
+    
+    // ⭐ CAMBIAR vm.prank por vm.startPrank/stopPrank
+    vm.startPrank(admin);
+    bank.grantRole(bank.TREASURER_ROLE(), address(testTreasury));
+    vm.stopPrank();
+    
+    // Dar ETH al bank
+    vm.deal(address(bank), 1 ether);
+    uint256 rescueAmount = 0.5 ether;
+    
+    uint256 balanceBefore = address(testTreasury).balance;
+    
+    vm.startPrank(address(testTreasury));
+    bank.rescue(address(0), rescueAmount);
+    vm.stopPrank();
+    
+    assertEq(address(testTreasury).balance, balanceBefore + rescueAmount, "Treasury should receive ETH");
+    assertEq(address(bank).balance, 0.5 ether, "Bank should have 0.5 ETH left");
+}
+
+
 
     function test_Treasury_RescueERC20() public {
         uint256 stuckAmount = 100 * 1e6;
