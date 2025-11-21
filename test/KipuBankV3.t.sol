@@ -3,7 +3,6 @@ pragma solidity ^0.8.26;
 
 import {Test, console} from "forge-std/Test.sol";
 import {KipuBankV3} from "../src/KipuBankV3.sol";
-
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {MockV3Aggregator} from "./mocks/MockV3Aggregator.sol";
 import {MockUniswapRouter} from "./mocks/MockUniswapRouter.sol";
@@ -17,16 +16,16 @@ contract KipuBankV3Test is Test {
     KipuBankV3 public bank;
     MockV3Aggregator public mockOracle;
     MockUniswapRouter public mockRouter;
-    MockERC20 public mockToken; // Token genérico para tests
+    MockERC20 public mockToken;
     
     // Sepolia Addresses
     address constant USDC_SEPOLIA = 0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238;
     address constant WETH_SEPOLIA = 0x7B79995e5F4ADA581Ed0aeeEe8858D9d2Df3a83A; 
     
-    address admin = makeAddr("admin");
-    address user1 = makeAddr("user1");
-    address user2 = makeAddr("user2");
-    address treasury = makeAddr("treasury");
+    address admin = vm.addr(100);
+    address user1 = vm.addr(1);
+    address user2 = vm.addr(2);
+    address treasury = vm.addr(3);
     
     // Configuration Constants
     uint256 constant BANK_CAP = 1_000_000 * 1e6;
@@ -71,8 +70,8 @@ contract KipuBankV3Test is Test {
         vm.deal(user1, 10 ether);
         vm.deal(WETH_SEPOLIA, 10 ether);
         
-        // ⭐ CRÍTICO: Fund the mock router con USDC para que pueda transferir
-        deal(USDC_SEPOLIA, address(mockRouter), 10_000_000 * 1e6); // 10M USDC
+        // Fund the mock router with USDC
+        deal(USDC_SEPOLIA, address(mockRouter), 10_000_000 * 1e6);
     }
     
     // =========================================================================
@@ -148,7 +147,6 @@ contract KipuBankV3Test is Test {
         uint256 tokenAmount = 100 * 1e18;
         uint256 expectedUSD = 500 * 1e6;
         
-        // Usar mockToken en lugar de unknownToken
         mockToken.mint(user1, tokenAmount);
         mockRouter.setExpectedOutputAmount(expectedUSD);
 
@@ -183,11 +181,9 @@ contract KipuBankV3Test is Test {
     
     function test_DepositToken_UsesStricterMinOut() public {
         uint256 tokenAmount = 100 * 1e18;
-        uint256 protocolExpected = 1000 * 1e6; 
         uint256 userMinOut = 995 * 1e6;
         
         mockToken.mint(user1, tokenAmount);
-        mockRouter.setExpectedOutputAmount(protocolExpected);
 
         vm.startPrank(user1);
         mockToken.approve(address(bank), tokenAmount);
@@ -253,9 +249,22 @@ contract KipuBankV3Test is Test {
     }
     
     function test_RevertWhen_DirectETHTransfer() public {
-        // El contrato debería revertir con UseDepositETH cuando recibe ETH directo
         vm.expectRevert(KipuBankV3.UseDepositETH.selector);
         payable(address(bank)).transfer(0.1 ether);
+    }
+
+    function test_RevertWhen_Deposit_Paused() public {
+        vm.startPrank(admin);
+        bank.pause();
+        vm.stopPrank();
+
+        vm.startPrank(user1);
+        deal(USDC_SEPOLIA, user1, 10 * 1e6);
+        IERC20(USDC_SEPOLIA).approve(address(bank), 10 * 1e6);
+
+        vm.expectRevert(abi.encodeWithSelector(bytes4(keccak256("EnforcedPause()"))));
+        bank.depositUSDC(10 * 1e6);
+        vm.stopPrank();
     }
 
     // =========================================================================
@@ -278,32 +287,29 @@ contract KipuBankV3Test is Test {
         vm.stopPrank();
     }
 
-    
-
     function test_WithdrawETH_Success() public {
-    uint256 usdAmount = 1000 * 1e6;
-    uint256 expectedETH = 0.5 ether;
-    
-    deal(USDC_SEPOLIA, user1, usdAmount);
-    vm.startPrank(user1);
-    IERC20(USDC_SEPOLIA).approve(address(bank), usdAmount);
-    bank.depositUSDC(usdAmount);
-    vm.stopPrank();
-    
-    vm.deal(address(mockRouter), 10 ether);
-    mockRouter.setExpectedOutputAmount(expectedETH);
-    
-    uint256 initialETHBalance = user1.balance;
-    
-    vm.startPrank(user1);
-    // ⭐ Simplemente llamar sin verificar evento
-    bank.withdrawETH(usdAmount);
-    vm.stopPrank();
-    
-    // Verificar estado final
-    assertEq(bank.getBalanceUSD6(user1), 0, "USDC balance should be debited");
-    assertEq(user1.balance, initialETHBalance + expectedETH, "ETH balance should reflect swap output");
-}
+        uint256 usdAmount = 1000 * 1e6;
+        uint256 expectedETH = 0.5 ether;
+        
+        deal(USDC_SEPOLIA, user1, usdAmount);
+        
+        vm.startPrank(user1);
+        IERC20(USDC_SEPOLIA).approve(address(bank), usdAmount);
+        bank.depositUSDC(usdAmount);
+        vm.stopPrank();
+        
+        vm.deal(address(mockRouter), 10 ether);
+        mockRouter.setExpectedOutputAmount(expectedETH);
+        
+        uint256 initialETHBalance = user1.balance;
+        
+        vm.startPrank(user1);
+        bank.withdrawETH(usdAmount);
+        vm.stopPrank();
+        
+        assertEq(bank.getBalanceUSD6(user1), 0, "USDC balance should be 0");
+        assertEq(user1.balance, initialETHBalance + expectedETH, "User should receive ETH");
+    }
 
     function test_RevertWhen_WithdrawETH_SwapFails() public {
         uint256 usdAmount = 100 * 1e6;
@@ -445,125 +451,88 @@ contract KipuBankV3Test is Test {
         vm.stopPrank();
     }
 
-    function test_RevertWhen_Deposit_Paused() public {
-        vm.startPrank(admin);
-        bank.pause();
-        vm.stopPrank();
-
-        vm.startPrank(user1);
-        deal(USDC_SEPOLIA, user1, 10 * 1e6);
-        IERC20(USDC_SEPOLIA).approve(address(bank), 10 * 1e6);
-
-        vm.expectRevert(abi.encodeWithSelector(bytes4(keccak256("EnforcedPause()"))));
-        bank.depositUSDC(10 * 1e6);
-        vm.stopPrank();
-    }
-
     // =========================================================================
-    // COUNTER OVERFLOW COVERAGE (Simplified - estos son difíciles de testear)
+    // COUNTER OVERFLOW COVERAGE
     // =========================================================================
 
     function test_RevertWhen_DepositCounterOverflows() public {
-    // Depositar primero para inicializar storage
-    uint256 amount = 10 * 1e6;
-    deal(USDC_SEPOLIA, user1, amount);
-    
-    vm.startPrank(user1);
-    IERC20(USDC_SEPOLIA).approve(address(bank), amount);
-    bank.depositUSDC(amount); // s_depositCount ahora es 1
-    vm.stopPrank();
-    
-    // Encontrar el slot correcto leyendo el valor actual
-    uint256 currentCount = bank.s_depositCount();
-    assertEq(currentCount, 1, "Sanity check");
-    
-    // Encontrar el slot iterando
-    for (uint256 i = 0; i < 100; i++) {
-        bytes32 slot = bytes32(i);
-        uint256 val = uint256(vm.load(address(bank), slot));
-        if (val == 1) {
-            // Verificar que es el slot correcto intentando incrementar
-            vm.store(address(bank), slot, bytes32(uint256(2)));
-            if (bank.s_depositCount() == 2) {
-                // Encontramos el slot correcto
-                console.log("Deposit counter slot found at:", i);
-                
-                // Ahora setear al máximo
-                vm.store(address(bank), slot, bytes32(bank.MAX_COUNTER_VALUE()));
-                
-                // Intentar depositar de nuevo
-                deal(USDC_SEPOLIA, user1, 10 * 1e6);
-                vm.startPrank(user1);
-                IERC20(USDC_SEPOLIA).approve(address(bank), 10 * 1e6);
-                
-                vm.expectRevert(KipuBankV3.CounterOverflow.selector);
-                bank.depositUSDC(10 * 1e6);
-                vm.stopPrank();
-                return;
+        uint256 amount = 10 * 1e6;
+        deal(USDC_SEPOLIA, user1, amount);
+        
+        vm.startPrank(user1);
+        IERC20(USDC_SEPOLIA).approve(address(bank), amount);
+        bank.depositUSDC(amount);
+        vm.stopPrank();
+        
+        uint256 currentCount = bank.s_depositCount();
+        assertEq(currentCount, 1, "Sanity check");
+        
+        for (uint256 i = 0; i < 100; i++) {
+            bytes32 slot = bytes32(i);
+            uint256 val = uint256(vm.load(address(bank), slot));
+            if (val == 1) {
+                vm.store(address(bank), slot, bytes32(uint256(2)));
+                if (bank.s_depositCount() == 2) {
+                    console.log("Deposit counter slot found at:", i);
+                    vm.store(address(bank), slot, bytes32(bank.MAX_COUNTER_VALUE()));
+                    
+                    deal(USDC_SEPOLIA, user1, 10 * 1e6);
+                    vm.startPrank(user1);
+                    IERC20(USDC_SEPOLIA).approve(address(bank), 10 * 1e6);
+                    
+                    vm.expectRevert(KipuBankV3.CounterOverflow.selector);
+                    bank.depositUSDC(10 * 1e6);
+                    vm.stopPrank();
+                    return;
+                }
+                vm.store(address(bank), slot, bytes32(uint256(1)));
             }
-            // Restaurar si no era el correcto
-            vm.store(address(bank), slot, bytes32(uint256(1)));
         }
+        
+        fail("Could not find deposit counter slot");
     }
-    
-    fail("Could not find deposit counter slot");
-}
     
     function test_RevertWhen_WithdrawalCounterOverflows() public {
-    uint256 amount = 10 * 1e6;
-    deal(USDC_SEPOLIA, user1, amount);
-    
-    vm.startPrank(user1);
-    IERC20(USDC_SEPOLIA).approve(address(bank), amount);
-    bank.depositUSDC(amount);
-    vm.stopPrank();
-    
-    // ⭐ ENCONTRAR EL SLOT CORRECTO DINÁMICAMENTE
-    // Primero hacer un withdraw para que el counter sea 1
-    vm.startPrank(user1);
-    bank.withdrawUSDC(amount / 2); // Retirar la mitad
-    vm.stopPrank();
-    
-    // Ahora s_withdrawCount debería ser 1
-    uint256 currentCount = bank.s_withdrawCount();
-    assertEq(currentCount, 1, "Withdraw count should be 1");
-    
-    // Buscar el slot que contiene el valor 1
-    bool slotFound = false;
-    for (uint256 i = 0; i < 50; i++) {
-        bytes32 slot = bytes32(i);
-        uint256 val = uint256(vm.load(address(bank), slot));
+        uint256 amount = 10 * 1e6;
+        deal(USDC_SEPOLIA, user1, amount);
         
-        if (val == 1) {
-            // Verificar si es el slot correcto
-            vm.store(address(bank), slot, bytes32(uint256(2)));
+        vm.startPrank(user1);
+        IERC20(USDC_SEPOLIA).approve(address(bank), amount);
+        bank.depositUSDC(amount);
+        bank.withdrawUSDC(amount / 2);
+        vm.stopPrank();
+        
+        uint256 currentCount = bank.s_withdrawCount();
+        assertEq(currentCount, 1, "Withdraw count should be 1");
+        
+        bool slotFound = false;
+        for (uint256 i = 0; i < 50; i++) {
+            bytes32 slot = bytes32(i);
+            uint256 val = uint256(vm.load(address(bank), slot));
             
-            if (bank.s_withdrawCount() == 2) {
-                console.log("Withdrawal counter slot found at:", i);
+            if (val == 1) {
+                vm.store(address(bank), slot, bytes32(uint256(2)));
                 
-                // Setear al máximo
-                vm.store(address(bank), slot, bytes32(bank.MAX_COUNTER_VALUE()));
+                if (bank.s_withdrawCount() == 2) {
+                    console.log("Withdrawal counter slot found at:", i);
+                    vm.store(address(bank), slot, bytes32(bank.MAX_COUNTER_VALUE()));
+                    assertEq(bank.s_withdrawCount(), bank.MAX_COUNTER_VALUE(), "Counter not set correctly");
+                    
+                    vm.startPrank(user1);
+                    vm.expectRevert(KipuBankV3.CounterOverflow.selector);
+                    bank.withdrawUSDC(amount / 2);
+                    vm.stopPrank();
+                    
+                    slotFound = true;
+                    break;
+                }
                 
-                // Verificar que se aplicó
-                assertEq(bank.s_withdrawCount(), bank.MAX_COUNTER_VALUE(), "Counter not set correctly");
-                
-                // Intentar retirar de nuevo
-                vm.startPrank(user1);
-                vm.expectRevert(KipuBankV3.CounterOverflow.selector);
-                bank.withdrawUSDC(amount / 2);
-                vm.stopPrank();
-                
-                slotFound = true;
-                break;
+                vm.store(address(bank), slot, bytes32(uint256(1)));
             }
-            
-            // Restaurar si no era el correcto
-            vm.store(address(bank), slot, bytes32(uint256(1)));
         }
+        
+        assertTrue(slotFound, "Could not find withdrawal counter slot");
     }
-    
-    assertTrue(slotFound, "Could not find withdrawal counter slot");
-}
 
     // =========================================================================
     // RESCUE COVERAGE
