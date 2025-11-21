@@ -8,11 +8,15 @@ import {MockV3Aggregator} from "./mocks/MockV3Aggregator.sol";
 import {MockUniswapRouter} from "./mocks/MockUniswapRouter.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 
-
-// ⭐ AGREGAR ESTE CONTRATO
+// Contrato auxiliar para recibir ETH (Happy Path)
 contract ETHReceiver {
     receive() external payable {}
     fallback() external payable {}
+}
+
+// Contrato auxiliar que RECHAZA recibir ETH (Sad Path para rescue)
+contract RevertingReceiver {
+    receive() external payable { revert("No ETH allowed"); }
 }
 
 /**
@@ -85,6 +89,20 @@ contract KipuBankV3Test is Test {
     // CONSTRUCTOR COVERAGE
     // =========================================================================
     
+    // ⭐ NUEVO: Cubre la rama if (admin == address(0))
+    function test_Ctor_Revert_Admin_Zero() public {
+        vm.expectRevert(KipuBankV3.InvalidParameters.selector);
+        new KipuBankV3(
+            address(0), 
+            USDC_SEPOLIA, 
+            address(mockOracle), 
+            address(mockRouter), 
+            BANK_CAP, 
+            WITHDRAW_THRESHOLD, 
+            DEFAULT_SLIPPAGE
+        );
+    }
+
     function test_Ctor_Revert_USDC_Zero() public {
         vm.expectRevert(KipuBankV3.InvalidParameters.selector);
         new KipuBankV3(admin, address(0), address(mockOracle), address(mockRouter), BANK_CAP, WITHDRAW_THRESHOLD, DEFAULT_SLIPPAGE);
@@ -118,6 +136,13 @@ contract KipuBankV3Test is Test {
     // =========================================================================
     // DEPOSIT COVERAGE
     // =========================================================================
+
+    function test_ReceiveETH_FromRouter() public {
+        vm.deal(address(mockRouter), 1 ether);
+        vm.prank(address(mockRouter));
+        (bool success,) = address(bank).call{value: 1 ether}("");
+        assertTrue(success, "El contrato deberia aceptar ETH del Router");
+    }
 
     function test_DepositETH_SwapsToUSDC() public {
         vm.startPrank(user1);
@@ -169,6 +194,13 @@ contract KipuBankV3Test is Test {
         assertEq(mockToken.balanceOf(user1), 0, "User's token balance must be zero");
         vm.stopPrank();
     }
+
+    function test_RevertWhen_DepositToken_ZeroAmount() public {
+        vm.startPrank(user1);
+        vm.expectRevert(KipuBankV3.ZeroAmount.selector);
+        bank.depositToken(address(mockToken), 0, 0);
+        vm.stopPrank();
+    }
     
     function test_RevertWhen_DepositToken_SwapFails() public {
         uint256 tokenAmount = 100 * 1e18;
@@ -202,6 +234,27 @@ contract KipuBankV3Test is Test {
         vm.expectRevert();
         bank.depositToken(address(mockToken), tokenAmount, userMinOut); 
         
+        vm.stopPrank();
+    }
+
+    function test_DepositToken_UsesContractMinWhenStricter() public {
+        uint256 tokenAmount = 100 * 1e18;
+        uint256 expectedUSD = 500 * 1e6; 
+        
+        mockToken.mint(user1, tokenAmount);
+        vm.startPrank(user1);
+        mockToken.approve(address(bank), tokenAmount);
+        
+        mockRouter.setExpectedOutputAmount(expectedUSD);
+        
+        // Usuario pide muy poco (400). Contrato calcula 495.
+        // Router devuelve 500. 500 >= 495 -> Éxito.
+        vm.expectEmit(true, true, false, true);
+        emit Deposit(user1, address(mockToken), tokenAmount, expectedUSD);
+        
+        bank.depositToken(address(mockToken), tokenAmount, 400 * 1e6); 
+        
+        assertEq(bank.getBalanceUSD6(user1), expectedUSD);
         vm.stopPrank();
     }
 
@@ -295,31 +348,30 @@ contract KipuBankV3Test is Test {
     }
 
     function test_WithdrawETH_Success() public {
-    // ⭐ Crear un receiver que pueda recibir ETH
-    ETHReceiver testUser = new ETHReceiver();
-    
-    uint256 usdAmount = 1000 * 1e6;
-    uint256 expectedETH = 0.5 ether;
-    
-    deal(USDC_SEPOLIA, address(testUser), usdAmount);
-    
-    vm.startPrank(address(testUser));
-    IERC20(USDC_SEPOLIA).approve(address(bank), usdAmount);
-    bank.depositUSDC(usdAmount);
-    vm.stopPrank();
-    
-    vm.deal(address(mockRouter), 10 ether);
-    mockRouter.setExpectedOutputAmount(expectedETH);
-    
-    uint256 balanceBefore = address(testUser).balance;
-    
-    vm.startPrank(address(testUser));
-    bank.withdrawETH(usdAmount);
-    vm.stopPrank();
-    
-    assertEq(bank.getBalanceUSD6(address(testUser)), 0, "USDC balance should be 0");
-    assertEq(address(testUser).balance, balanceBefore + expectedETH, "User should receive ETH");
-}
+        ETHReceiver testUser = new ETHReceiver();
+        
+        uint256 usdAmount = 1000 * 1e6;
+        uint256 expectedETH = 0.5 ether;
+        
+        deal(USDC_SEPOLIA, address(testUser), usdAmount);
+        
+        vm.startPrank(address(testUser));
+        IERC20(USDC_SEPOLIA).approve(address(bank), usdAmount);
+        bank.depositUSDC(usdAmount);
+        vm.stopPrank();
+        
+        vm.deal(address(mockRouter), 10 ether);
+        mockRouter.setExpectedOutputAmount(expectedETH);
+        
+        uint256 balanceBefore = address(testUser).balance;
+        
+        vm.startPrank(address(testUser));
+        bank.withdrawETH(usdAmount);
+        vm.stopPrank();
+        
+        assertEq(bank.getBalanceUSD6(address(testUser)), 0, "USDC balance should be 0");
+        assertEq(address(testUser).balance, balanceBefore + expectedETH, "User should receive ETH");
+    }
 
     function test_RevertWhen_WithdrawETH_SwapFails() public {
         uint256 usdAmount = 100 * 1e6;
@@ -395,6 +447,15 @@ contract KipuBankV3Test is Test {
 
     function test_RevertWhen_OraclePriceIsNegative() public {
         mockOracle.updateAnswer(-100);
+        
+        vm.expectRevert(KipuBankV3.OracleCompromised.selector);
+        bank.getETHPrice();
+    }
+
+    // ⭐ NUEVO: Cubre la rama if (answeredInRound < roundId)
+    function test_RevertWhen_OracleRoundIncomplete() public {
+        // roundId = 2, answer = 2000, time = now, answeredInRound = 1 (incompleta)
+        mockOracle.setRoundData(2, 2000e8, block.timestamp, 1);
         
         vm.expectRevert(KipuBankV3.OracleCompromised.selector);
         bank.getETHPrice();
@@ -544,34 +605,73 @@ contract KipuBankV3Test is Test {
         assertTrue(slotFound, "Could not find withdrawal counter slot");
     }
 
+    function test_RevertWhen_SwapCounterOverflows() public {
+        uint256 amount = 1 ether;
+        mockRouter.setExpectedOutputAmount(2000 * 1e6); 
+
+        bool slotFound = false;
+        for (uint256 i = 0; i < 100; i++) {
+            bytes32 slot = bytes32(i);
+            uint256 val = uint256(vm.load(address(bank), slot));
+            
+            if (val == 0) {
+                vm.store(address(bank), slot, bytes32(uint256(1)));
+                if (bank.s_swapCount() == 1) {
+                    console.log("Swap counter slot found at:", i);
+                    vm.store(address(bank), slot, bytes32(bank.MAX_COUNTER_VALUE()));
+                    
+                    vm.startPrank(user1);
+                    vm.expectRevert(KipuBankV3.CounterOverflow.selector);
+                    bank.depositETH{value: amount}();
+                    vm.stopPrank();
+                    
+                    slotFound = true;
+                    break;
+                }
+                vm.store(address(bank), slot, bytes32(uint256(0)));
+            }
+        }
+        assertTrue(slotFound, "Could not find swap counter slot");
+    }
+
     // =========================================================================
     // RESCUE COVERAGE
     // =========================================================================
 
     function test_Treasury_RescueETH() public {
-    // Crear un receiver que pueda recibir ETH
-    ETHReceiver testTreasury = new ETHReceiver();
-    
-    // ⭐ CAMBIAR vm.prank por vm.startPrank/stopPrank
-    vm.startPrank(admin);
-    bank.grantRole(bank.TREASURER_ROLE(), address(testTreasury));
-    vm.stopPrank();
-    
-    // Dar ETH al bank
-    vm.deal(address(bank), 1 ether);
-    uint256 rescueAmount = 0.5 ether;
-    
-    uint256 balanceBefore = address(testTreasury).balance;
-    
-    vm.startPrank(address(testTreasury));
-    bank.rescue(address(0), rescueAmount);
-    vm.stopPrank();
-    
-    assertEq(address(testTreasury).balance, balanceBefore + rescueAmount, "Treasury should receive ETH");
-    assertEq(address(bank).balance, 0.5 ether, "Bank should have 0.5 ETH left");
-}
+        ETHReceiver testTreasury = new ETHReceiver();
+        
+        vm.startPrank(admin);
+        bank.grantRole(bank.TREASURER_ROLE(), address(testTreasury));
+        vm.stopPrank();
+        
+        vm.deal(address(bank), 1 ether);
+        uint256 rescueAmount = 0.5 ether;
+        
+        uint256 balanceBefore = address(testTreasury).balance;
+        
+        vm.startPrank(address(testTreasury));
+        bank.rescue(address(0), rescueAmount);
+        vm.stopPrank();
+        
+        assertEq(address(testTreasury).balance, balanceBefore + rescueAmount, "Treasury should receive ETH");
+        assertEq(address(bank).balance, 0.5 ether, "Bank should have 0.5 ETH left");
+    }
 
-
+    function test_RevertWhen_RescueETH_TransferFails() public {
+        RevertingReceiver badActor = new RevertingReceiver();
+        
+        vm.deal(address(bank), 1 ether);
+        
+        vm.startPrank(admin);
+        bank.grantRole(bank.TREASURER_ROLE(), address(badActor));
+        vm.stopPrank();
+        
+        vm.startPrank(address(badActor));
+        vm.expectRevert(KipuBankV3.ETHTransferFailed.selector);
+        bank.rescue(address(0), 1 ether);
+        vm.stopPrank();
+    }
 
     function test_Treasury_RescueERC20() public {
         uint256 stuckAmount = 100 * 1e6;
@@ -591,6 +691,119 @@ contract KipuBankV3Test is Test {
         vm.startPrank(treasury);
         vm.expectRevert(KipuBankV3.ZeroAmount.selector);
         bank.rescue(address(0), 0);
+        vm.stopPrank();
+    }
+
+    // =========================================================================
+    // FUZZ TESTING
+    // =========================================================================
+
+    /// @notice Prueba depósitos de USDC con cantidades aleatorias
+    /// forge-config: default.fuzz.runs = 256
+    function testFuzz_DepositUSDC(uint256 amount) public {
+        amount = bound(amount, 1 * 1e6, BANK_CAP);
+        
+        deal(USDC_SEPOLIA, user1, amount);
+        
+        vm.startPrank(user1);
+        IERC20(USDC_SEPOLIA).approve(address(bank), amount);
+        bank.depositUSDC(amount);
+        
+        assertEq(bank.getBalanceUSD6(user1), amount, "Balance interno debe coincidir");
+        assertEq(IERC20(USDC_SEPOLIA).balanceOf(address(bank)), amount, "Banco debe tener los tokens");
+        vm.stopPrank();
+    }
+
+    /// @notice Prueba retiros parciales con montos aleatorios
+    /// forge-config: default.fuzz.runs = 256
+    function testFuzz_WithdrawPartial(uint256 depositAmount, uint256 withdrawAmount) public {
+        depositAmount = bound(depositAmount, 100 * 1e6, BANK_CAP); 
+        withdrawAmount = bound(withdrawAmount, 1 * 1e6, depositAmount);
+        
+        if (withdrawAmount > WITHDRAW_THRESHOLD) {
+            withdrawAmount = WITHDRAW_THRESHOLD;
+        }
+
+        deal(USDC_SEPOLIA, user1, depositAmount);
+        
+        vm.startPrank(user1);
+        IERC20(USDC_SEPOLIA).approve(address(bank), depositAmount);
+        bank.depositUSDC(depositAmount);
+        bank.withdrawUSDC(withdrawAmount);
+        
+        assertEq(bank.getBalanceUSD6(user1), depositAmount - withdrawAmount, "Error en resta de balance");
+        vm.stopPrank();
+    }
+
+    /// @notice Prueba que el total nunca exceda el cap con múltiples usuarios
+    /// forge-config: default.fuzz.runs = 128
+    function testFuzz_TotalNeverExceedsCap(uint256 amount1, uint256 amount2) public {
+        amount1 = bound(amount1, 1 * 1e6, BANK_CAP / 2);
+        amount2 = bound(amount2, 1 * 1e6, BANK_CAP / 2);
+        
+        if (amount1 + amount2 > BANK_CAP) {
+            deal(USDC_SEPOLIA, user1, amount1);
+            deal(USDC_SEPOLIA, user2, amount2);
+            
+            vm.startPrank(user1);
+            IERC20(USDC_SEPOLIA).approve(address(bank), amount1);
+            bank.depositUSDC(amount1);
+            vm.stopPrank();
+            
+            vm.startPrank(user2);
+            IERC20(USDC_SEPOLIA).approve(address(bank), amount2);
+            vm.expectRevert();
+            bank.depositUSDC(amount2);
+            vm.stopPrank();
+        } else {
+            deal(USDC_SEPOLIA, user1, amount1);
+            deal(USDC_SEPOLIA, user2, amount2);
+            
+            vm.startPrank(user1);
+            IERC20(USDC_SEPOLIA).approve(address(bank), amount1);
+            bank.depositUSDC(amount1);
+            vm.stopPrank();
+            
+            vm.startPrank(user2);
+            IERC20(USDC_SEPOLIA).approve(address(bank), amount2);
+            bank.depositUSDC(amount2);
+            vm.stopPrank();
+            
+            assertLe(bank.s_totalUSD6(), BANK_CAP);
+        }
+    }
+
+    // =========================================================================
+    // NEGATIVE ACCESS CONTROL TESTS
+    // =========================================================================
+
+    function test_RevertWhen_NonAdminSetsCap() public {
+        vm.startPrank(user1);
+        vm.expectRevert();
+        bank.setBankCapUSD6(5000 * 1e6);
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_NonAdminSetsSlippage() public {
+        vm.startPrank(user1);
+        vm.expectRevert();
+        bank.setDefaultSlippage(200);
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_NonPauserPausesContract() public {
+        vm.startPrank(user1);
+        vm.expectRevert();
+        bank.pause();
+        vm.stopPrank();
+    }
+
+    function test_RevertWhen_NonTreasurerCallsRescue() public {
+        vm.deal(address(bank), 1 ether);
+        
+        vm.startPrank(user1);
+        vm.expectRevert();
+        bank.rescue(address(0), 1 ether);
         vm.stopPrank();
     }
 }

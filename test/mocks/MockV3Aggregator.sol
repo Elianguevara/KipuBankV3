@@ -4,7 +4,6 @@ pragma solidity ^0.8.0;
 // FINAL CORRECTION: Using 'shared/interfaces' 
 import {AggregatorV3Interface} from "lib/chainlink-brownie-contracts/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 
-
 /**
  * @title MockV3Aggregator
  * @notice Mock Oracle for testing price feeds and failure scenarios.
@@ -19,6 +18,8 @@ contract MockV3Aggregator is AggregatorV3Interface {
     uint256 public updatedAt;
     /// @notice The current round identifier.
     uint80 public roundId;
+    /// @notice The round ID in which the answer was computed.
+    uint80 public answeredInRound; // ⭐ NUEVA VARIABLE DE ESTADO
 
     /**
      * @notice Constructor for the Mock.
@@ -30,29 +31,37 @@ contract MockV3Aggregator is AggregatorV3Interface {
         answer = _initialAnswer;
         updatedAt = block.timestamp;
         roundId = 1;
+        answeredInRound = 1; // ⭐ INICIALIZAR
     }
 
     /**
      * @notice Updates the simulated price answer and increments the round.
      * @param _answer New price answer.
-     * @dev Used by tests to simulate price changes.
+     * @dev Used by tests to simulate price changes normally.
      */
     function updateAnswer(int256 _answer) public {
         answer = _answer;
         updatedAt = block.timestamp;
         roundId++;
+        answeredInRound = roundId; // ⭐ MANTENER SINCRONIZADO NORMALMENTE
     }
     
     /**
      * @notice Allows setting specific round data for complex testing scenarios.
-     * @param _roundId Round identifier.
-     * @param _answer Price answer.
-     * @param _updatedAt Timestamp of the update.
+     * @dev Used to simulate anomalies (e.g. stale rounds).
      */
-    function updateRoundData(uint80 _roundId, int256 _answer, uint256 _updatedAt, uint80 /* _answeredInRound */) public {
+    function updateRoundData(uint80 _roundId, int256 _answer, uint256 _updatedAt, uint80 _answeredInRound) public {
         roundId = _roundId;
         answer = _answer;
         updatedAt = _updatedAt;
+        answeredInRound = _answeredInRound; // ⭐ PERMITIR MANIPULACIÓN
+    }
+
+    /**
+     * @notice Alias for updateRoundData to match the test naming convention used in KipuBankV3.t.sol
+     */
+    function setRoundData(uint80 _roundId, int256 _answer, uint256 _updatedAt, uint80 _answeredInRound) public {
+        updateRoundData(_roundId, _answer, _updatedAt, _answeredInRound);
     }
 
     /// @notice Returns the description of the mock.
@@ -67,12 +76,6 @@ contract MockV3Aggregator is AggregatorV3Interface {
 
     /**
      * @notice Returns data for a specific round (simulated).
-     * @param _roundId The requested round.
-     * @return roundId_ The round ID.
-     * @return answer_ The price answer.
-     * @return startedAt_ The starting timestamp of the round.
-     * @return updatedAt_ The latest update timestamp.
-     * @return answeredInRound_ The round ID in which the answer was finalized.
      */
     function getRoundData(uint80 _roundId)
         external
@@ -86,16 +89,12 @@ contract MockV3Aggregator is AggregatorV3Interface {
             uint80 answeredInRound_
         )
     {
-        return (_roundId, answer, updatedAt, updatedAt, _roundId);
+        // ⭐ DEVOLVER LA VARIABLE DE ESTADO MANIPULABLE
+        return (_roundId, answer, updatedAt, updatedAt, answeredInRound);
     }
 
     /**
      * @notice Returns the latest simulated price data.
-     * @return roundId_ The latest round ID.
-     * @return answer_ The latest price answer.
-     * @return startedAt_ The starting timestamp of the round.
-     * @return updatedAt_ The latest update timestamp.
-     * @return answeredInRound_ The round ID in which the answer was finalized.
      */
     function latestRoundData()
         external
@@ -109,6 +108,7 @@ contract MockV3Aggregator is AggregatorV3Interface {
             uint80 answeredInRound_
         )
     {
-        return (roundId, answer, updatedAt, updatedAt, roundId);
+        // ⭐ DEVOLVER LA VARIABLE DE ESTADO MANIPULABLE
+        return (roundId, answer, updatedAt, updatedAt, answeredInRound);
     }
 }
