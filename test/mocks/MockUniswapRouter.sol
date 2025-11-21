@@ -99,12 +99,17 @@ contract MockUniswapRouter is IUniswapV2Router02 {
     /// @notice Mocks swapping Token for Token (ERC20 to USDC).
     function swapExactTokensForTokens(
         uint amountIn,
-        uint /* amountOutMin */,
+        uint amountOutMin ,
         address[] calldata path,
         address to,
         uint /* deadline */
     ) external override returns (uint[] memory amounts) {
         if (shouldSwapFail) revert("MockRouter: Swap failed");
+
+        
+        if (expectedOutputAmount < amountOutMin) {
+            revert("MockRouter: KipuBankV3 minOut slippage check failed"); 
+        }
 
         // Take input token from the caller (bank)
         IERC20(path[0]).safeTransferFrom(msg.sender, address(this), amountIn);
