@@ -10,7 +10,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {AggregatorV3Interface} from "lib/chainlink-brownie-contracts/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
-import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router02.sol";
+import {IUniswapV2Router02} from "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 
 /**
  * @title KipuBankV3
@@ -37,7 +37,7 @@ import {IUniswapV2Router02} from "../interfaces/IUniswapV2Router02.sol";
  *      - Emergency pause functionality
  *      - Counter overflow protection for all operations
  *      
- * @custom:security-contact elian.guevara@ies9021.edu.ar
+ * @custom:security-contact elian.guevara689@gmail.com
  * @custom:deployed-to Sepolia Testnet: 0x68f19cfCE402C661F457e3fF77b1E056a5EC6dA8
  * @custom:etherscan https://sepolia.etherscan.io/address/0x68f19cfce402c661f457e3ff77b1e056a5ec6da8
  * @custom:version 3.0.1
