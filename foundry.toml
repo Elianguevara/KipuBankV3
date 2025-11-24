@@ -124,8 +124,9 @@ coverage_ignore = [
     "src/KipuBankV3.sol:_ethWeiToUSD6",
     "src/KipuBankV3.sol:_usd6ToEthWei",
     "src/KipuBankV3.sol:getMinAmountOut"
-]
 
+]
+#
 # ========================================
 # ✅ PRODUCTION PROFILE
 # ========================================

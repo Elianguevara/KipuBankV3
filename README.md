@@ -10,7 +10,7 @@
 [![Coverage](https://img.shields.io/badge/Coverage-95.24%25-brightgreen)](https://github.com/elian-dev/kipubankv3)
 [![Audit](https://img.shields.io/badge/Audit-Pending-yellow)](https://github.com/elian-dev/kipubankv3)
 
-[**Live on Sepolia**](https://sepolia.etherscan.io/address/0x68f19cfce402c661f457e3ff77b1e056a5ec6da8) • [**Documentation**](https://github.com/elian-dev/kipubankv3) • [**Report Issues**](https://github.com/elian-dev/kipubankv3/issues)
+[**Live on Sepolia**](https://sepolia.etherscan.io/address/0xF7925F475D7EbF22Fc531C5E2830229C70567172) • [**Documentation**](https://github.com/elian-dev/kipubankv3) • [**Report Issues**](https://github.com/elian-dev/kipubankv3/issues)
 
 </div>
 
@@ -19,6 +19,23 @@
 ## 🌟 Overview
 
 **KipuBankV3** is a cutting-edge DeFi banking protocol that seamlessly integrates with Uniswap V2 to accept **any ERC20 token**, automatically converting them to USDC for unified accounting. Built with security-first architecture and gas-optimized design patterns.
+
+### 📍 Deployment Information
+
+<table>
+<tr>
+<th>Network</th>
+<th>Contract Address</th>
+<th>Deployer</th>
+<th>Block</th>
+</tr>
+<tr>
+<td><b>Sepolia Testnet</b></td>
+<td><a href="https://sepolia.etherscan.io/address/0xF7925F475D7EbF22Fc531C5E2830229C70567172">0xF7925F475D7EbF22Fc531C5E2830229C70567172</a></td>
+<td><a href="https://sepolia.etherscan.io/address/0x1F3cf3D173E3eb50CaCA1B428515E3355f420004">0x1F3cf3D173E3eb50CaCA1B428515E3355f420004</a></td>
+<td>7353294</td>
+</tr>
+</table>
 
 <div align="center">
 ```mermaid
@@ -96,7 +113,25 @@ cd kipubankv3
 forge install
 ```
 
-### Deploy to Sepolia
+### Interact with Deployed Contract
+
+```bash
+# Set contract address
+export CONTRACT="0xF7925F475D7EbF22Fc531C5E2830229C70567172"
+
+# Deposit ETH
+cast send $CONTRACT "depositETH()" \
+  --value 0.01ether \
+  --private-key $PRIVATE_KEY \
+  --rpc-url $SEPOLIA_RPC_URL
+
+# Check balance
+cast call $CONTRACT "getBalanceUSD6(address)(uint256)" \
+  $YOUR_ADDRESS \
+  --rpc-url $SEPOLIA_RPC_URL
+```
+
+### Deploy Your Own Instance
 
 ```bash
 # Set environment variables
@@ -371,7 +406,7 @@ const provider = new ethers.JsonRpcProvider(RPC_URL);
 const signer = new ethers.Wallet(PRIVATE_KEY, provider);
 
 const kipuBank = new ethers.Contract(
-  "0x68f19cfCE402C661F457e3fF77b1E056a5EC6dA8",
+  "0xF7925F475D7EbF22Fc531C5E2830229C70567172",
   KipuBankV3ABI,
   signer
 );
@@ -394,14 +429,25 @@ await withdrawTx.wait();
 ### Foundry/Cast
 
 ```bash
+# Contract address
+CONTRACT="0xF7925F475D7EbF22Fc531C5E2830229C70567172"
+
 # Deposit 0.1 ETH
-cast send $CONTRACT "depositETH()" --value 0.1ether
+cast send $CONTRACT "depositETH()" \
+  --value 0.1ether \
+  --private-key $PRIVATE_KEY \
+  --rpc-url $SEPOLIA_RPC_URL
 
 # Check balance
-cast call $CONTRACT "getBalanceUSD6(address)(uint256)" $USER_ADDRESS
+cast call $CONTRACT "getBalanceUSD6(address)(uint256)" \
+  $USER_ADDRESS \
+  --rpc-url $SEPOLIA_RPC_URL
 
 # Withdraw 100 USDC
-cast send $CONTRACT "withdrawUSDC(uint256)" 100000000
+cast send $CONTRACT "withdrawUSDC(uint256)" \
+  100000000 \
+  --private-key $PRIVATE_KEY \
+  --rpc-url $SEPOLIA_RPC_URL
 ```
 
 ---
@@ -448,13 +494,33 @@ slither src/
 aderyn .
 ```
 
+### Verify Deployment
+
+```bash
+# Verify on Etherscan
+forge verify-contract \
+  --chain-id 11155111 \
+  --compiler-version v0.8.26+commit.8a97fa7a \
+  0xF7925F475D7EbF22Fc531C5E2830229C70567172 \
+  src/KipuBankV3.sol:KipuBankV3 \
+  --constructor-args $(cast abi-encode "constructor(address,address,address,address,uint256,uint256,uint256)" \
+    0x1F3cf3D173E3eb50CaCA1B428515E3355f420004 \
+    0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238 \
+    0x694AA1769357215DE4FAC081bf1f309aDC325306 \
+    0xC532a74256D3Db42D0Bf7a0400fEFDbad7694008 \
+    1000000000000 \
+    10000000000 \
+    100) \
+  --watch
+```
+
 ---
 
 ## 📚 Documentation
 
 - 📄 [Technical Specification](https://github.com/elian-dev/kipubankv3/docs)
-- 🔍 [Verified Contract](https://sepolia.etherscan.io/address/0x68f19cfce402c661f457e3ff77b1e056a5ec6da8#code)
-- 📖 [NatSpec Documentation](https://sepolia.etherscan.io/address/0x68f19cfce402c661f457e3ff77b1e056a5ec6da8#readContract)
+- 🔍 [Verified Contract](https://sepolia.etherscan.io/address/0xF7925F475D7EbF22Fc531C5E2830229C70567172#code)
+- 📖 [NatSpec Documentation](https://sepolia.etherscan.io/address/0xF7925F475D7EbF22Fc531C5E2830229C70567172#readContract)
 - 🎓 [Kipu Course Materials](https://kipu.com)
 
 ---
@@ -486,6 +552,11 @@ _Ethereum Developer Pack - Module 4 Final Project_
 
 [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/elian-dev)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/elian-guevara)
+
+---
+
+**Contract:** [0xF7925F475D7EbF22Fc531C5E2830229C70567172](https://sepolia.etherscan.io/address/0xF7925F475D7EbF22Fc531C5E2830229C70567172)  
+**Deployed by:** [0x1F3cf3D173E3eb50CaCA1B428515E3355f420004](https://sepolia.etherscan.io/address/0x1F3cf3D173E3eb50CaCA1B428515E3355f420004)
 
 ---
 
