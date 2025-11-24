@@ -8,13 +8,13 @@ import {MockV3Aggregator} from "./mocks/MockV3Aggregator.sol";
 import {MockUniswapRouter} from "./mocks/MockUniswapRouter.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 
-// Contrato auxiliar para recibir ETH (Happy Path)
+// Helper contract to receive ETH (Happy Path)
 contract ETHReceiver {
     receive() external payable {}
     fallback() external payable {}
 }
 
-// Contrato auxiliar que RECHAZA recibir ETH (Sad Path para rescue)
+// Helper contract that REJECTS ETH (Sad Path for rescue)
 contract RevertingReceiver {
     receive() external payable { revert("No ETH allowed"); }
 }
@@ -89,7 +89,7 @@ contract KipuBankV3Test is Test {
     // CONSTRUCTOR COVERAGE
     // =========================================================================
     
-    // ⭐ NUEVO: Cubre la rama if (admin == address(0))
+    //  NEW: Covers branch if (admin == address(0))
     function test_Ctor_Revert_Admin_Zero() public {
         vm.expectRevert(KipuBankV3.InvalidParameters.selector);
         new KipuBankV3(
